@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: agentic-config
+  namespace: agentic-platform
+data:
+  ENVIRONMENT: production
+  APP_NAME: Enterprise Agentic AI Operating Platform
+  DATABASE_URL: postgresql+asyncpg://agentic:agentic@postgres:5432/agentic
+  REDIS_URL: redis://redis:6379/0
+  CORS_ORIGINS: '["https://agentic.example.com"]'
+  LLM_PROVIDER: local
+  LLM_MODEL: local-deterministic
+  OTEL_ENABLED: "true"

@@ -1,0 +1,57 @@
+name: CI
+on: [push, pull_request]
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: agentic
+          POSTGRES_USER: agentic
+          POSTGRES_PASSWORD: agentic
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U agentic -d agentic"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7-alpine
+        ports: ['6379:6379']
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      SECRET_KEY: ci-secret-key-that-is-long-enough-to-pass-validation
+      DATABASE_URL: postgresql+asyncpg://agentic:agentic@localhost:5432/agentic
+      REDIS_URL: redis://localhost:6379/0
+      QDRANT_URL: http://localhost:6333
+      OTEL_ENABLED: "false"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: {python-version: "3.12"}
+      - run: pip install ".[dev]"
+      - run: ruff check backend/app backend/tests
+      - run: ruff format --check backend/app backend/tests
+      - name: Type check (advisory)
+        run: mypy backend/app
+        continue-on-error: true
+      - run: alembic -c backend/alembic.ini upgrade head
+      - run: pytest -q backend/tests
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm install --no-audit --no-fund
+        working-directory: frontend
+      - run: npx tsc -b
+        working-directory: frontend
+      - run: npm run build
+        working-directory: frontend
